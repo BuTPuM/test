@@ -1,0 +1,166 @@
+﻿FUNCTION "PID" : Void
+
+{ S7_Optimized_Access := 'TRUE' }
+VERSION : 0.1
+VAR_INPUT
+
+END_VAR
+
+VAR_OUTPUT
+
+END_VAR
+
+VAR_IN_OUT
+
+END_VAR
+
+VAR_TEMP
+  tempPIDOut : Word;
+  tempPIDMan : Bool;
+  tempV3UF1 : Bool;
+  tempFlow : Real;
+  tempFlow1 : Real;
+END_VAR
+
+VAR CONSTANT
+
+END_VAR
+
+
+
+
+BEGIN
+	REGION F3.UF1
+	    // Statement section REGION
+	    // 
+	    "Timer_V3UF1".TP(IN:="M_Devices"."V3.UF1",
+	           PT:=T#10S);
+	
+	    IF "Timer_V3UF1".Q THEN
+	        "V3UF1_DB".MAN := 50.0;
+	        #tempPIDMan := true;
+	    ELSE
+	        #tempPIDMan := FALSE;
+	    END_IF;
+	    IF NOT "M_Devices"."V3.UF1" THEN
+	        "V3UF1_PID".Data.SP2 := "F1.UF1_DB".Data."20mA";
+	     
+	    END_IF;
+	    //#tempPIDMan := "Timer_V3UF1".Q;
+	    
+	    "V3UF1_PID".Data.SP1 := "UF_DB".Data.Capasity;
+	   // #tempV3UF1 := 
+	    
+	     "V3UF1_DB"(PV:="F1.UF1_DB".Data.Value,
+	                ResetPID:= "Alarm_DB".Stop , //OR  "Alarm_DB".Stop AND NOT "M_Devices"."V3.UF1"  NOT "V3UF1_DB".Man_ON,
+	           SetP1:=TRUE,
+	           SetP2:= NOT "M_Devices"."V3.UF1",
+	           ManExt:=#tempPIDMan,// OR "F1.UF1_DB".Data.StatusAnalog <>2 ,,
+	           Out_word=>#tempPIDOut,
+	           Data:= "V3UF1_PID".Data);
+	
+	       "M_AQ"."AQ_V3.UF1" := WORD_TO_INT(#tempPIDOut);
+	END_REGION
+	REGION PP1
+	"PP1_DB"(PV:="P2.PP1_DB".Data.Value,
+	         ResetPID:=NOT "Devices_DB".PP1.Out OR "Alarm_DB".Stop,// OR NOT "M_DI".DI_PP1,
+	         SetP1:=TRUE,
+	         ManExt:="P2.PP1_DB".Data.StatusAnalog <>2,
+	         Scale:=TRUE,
+	         Out_word=>#tempPIDOut,
+	         Data:="PP1_PID".Data);
+	"M_AQ".AQ_PP1 := WORD_TO_INT(#tempPIDOut);
+	    
+	END_REGION
+	
+	REGION PP2
+	    "PP2_DB"(PV:="F1.UF1_DB".Data.Value,
+	             ResetPID:=NOT "M_DQ".DQ_PP2 OR "Alarm_DB".Stop,// OR NOT "M_DI".DI_PP2,
+	             SetP1:="UF_DB".Data.Step = 6,
+	             SetP2:="UF_DB".Data.Step = 7
+	             OR "UF_DB".Data.Step = 9
+	             OR "UF_DB".Data.Step = 10
+	             OR "UF_DB".Data.Step = 12
+	             OR "UF_DB".Data.Step = 13
+	             OR "UF_DB".Data.Step = 15,
+	             ManExt:=false ,//"F1.UF1_DB".Data.Status <> 2, // false
+	             Scale:=TRUE,
+	             Out_word=>#tempPIDOut,
+	             Data:="PP2_PID".Data);
+	    "M_AQ".AQ_PP2 := WORD_TO_INT(#tempPIDOut);
+	     
+	END_REGION
+	
+	REGION SD4
+	"SD4_DB"(PV:="Q1.SD4_DB".Data.Value,
+	         ResetPID:= NOT "M_DQ".DQ_SD4 OR "Alarm_DB".Stop,
+	         SetP1:=TRUE,
+	         Out_word=>#tempPIDOut,
+	         Data:="SD4_PID".Data);
+	"M_AQ".AQ_SD4 := WORD_TO_INT(#tempPIDOut);
+	    
+	END_REGION
+	REGION PP102
+	 "PP102_DB"(PV:="P3.102_DB".Data.Value,
+	        ResetPID:=NOT "M_DQ".DQ_PP102 OR "Alarm_DB".Stop,
+	        SetP1:="RO_GEN_DB".Data.Step >=4 AND  "RO_GEN_DB".Data.Step <=8,
+	        SetP2:="RO_GEN_DB".Data.Step =3 ,
+	        ManExt:= false,// "P3.102_DB".Data.StatusAnalog<>2,
+	        Scale:=TRUE,
+	        Out_word=>#tempPIDOut,
+	        Data:="PP102_PID".Data);
+	"M_AQ".AQ_PP102 := WORD_TO_INT(#tempPIDOut);
+	
+	END_REGION
+	REGION PP104
+	    
+	//     #tempFlow := "F3.105_DB".Data.Value / 100;
+	//     #tempFlow1 := "RO_GEN_DB".Data.Capasity / 100;
+	// "PP104SetPointPlus_DB"(Pressure:="P4.104_DB".Data.Value,
+	//                        Flow:=#tempFlow,
+	//                        PressureMax1:="P4.104_DB".Data.AlarmMax1,
+	//                        Capasity:=#tempFlow1,
+	//                        Capasity_Hist:=5.0,
+	//                        SPStart:="PP104_DB".SP1,
+	//                        Step:="RO_GEN_DB".Data.Step,
+	//                        PumpStart:="M_DQ".DQ_PP104,
+	//                        F_Analog_Alarm:="Alarm_DB".F3105,
+	//                        PID_ManON:="PP104_DB".Man_ON,
+	//                        SP:="PP104_DB".SP3);
+	
+	"PP104_DB"(PV:="P4.104_DB".Data.Value,
+	           ResetPID:=NOT "M_DQ".DQ_PP104 OR "Alarm_DB".Stop,
+	           SetP1:=TRUE,
+	           //SetP2:=FALSE,
+	          // SetP3:="RO_GEN_DB".Data.Step=6,
+	           ManExt:=false ,//"P4.104_DB".Data.StatusAnalog <>2,
+	           Scale:=TRUE,
+	           Out_word=>#tempPIDOut,
+	           Data:="PP104_PID".Data);
+	"M_AQ".AQ_PP104:= WORD_TO_INT(#tempPIDOut);
+	END_REGION
+	REGION PP4
+	 "PP4_DB"(PV:="P2.ZB4_DB".Data.Value,
+	         ResetPID:=NOT "M_DQ".DQ_PP4 OR "Alarm_DB".Stop,
+	         SetP1:="Loop_ZB4_DB".Data.Step = 2 OR "Loop_ZB4_DB".Data.Step = 1,
+	         ManExt:=false ,//"P2.ZB4_DB".Data.StatusAnalog <>2,
+	         Scale:=TRUE,
+	         Out_word=>#tempPIDOut,
+	         Data:="PP4_PID".Data);
+	"M_AQ".AQ_PP4 := WORD_TO_INT(#tempPIDOut);
+	    
+	END_REGION
+	REGION H-8
+	    "H-8_DB"(PV:="112.67b_DB".Data.Value,
+	            ResetPID:=NOT "M_DQ"."DQ_PP_H-8" OR "Alarm_DB".Stop,
+	            SetP1:=TRUE,
+	            ManExt:="112.67b_DB".Data.StatusAnalog <>2,
+	            Scale:=TRUE,
+	            Out_word=>#tempPIDOut,
+	            Data:="H-8_PID".Data);
+	   "M_AQ"."AQ_H-8" := WORD_TO_INT(#tempPIDOut);
+	    
+	END_REGION
+	
+END_FUNCTION
+
